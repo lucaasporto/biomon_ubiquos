@@ -54,22 +54,44 @@ A aquisição é baseada na leitura diferencial em pares. A conexão lógica se 
 
 Abaixo, é possível visualizar o diagrama esquemático do circuito, projetado e montado utilizando a ferramenta EasyEDA, detalhando as ligações elétricas entre os componentes:
 
-![Circuito montado no Easy EDA](images/circuit.svg)
+<p align="center">
+  <img src="images/circuit.svg" alt="Circuito montado no Easy EDA" width="80%">
+</p>
 
-Com base no esquemático, o design da placa de circuito impresso (PCB) foi elaborado. A seguir, a renderização 3D da PCB desenvolvida, mostrando a disposição física final dos conectores e módulos:
+Com base no esquemático, o design da placa de circuito impresso (PCB) foi elaborado. A seguir, apresentamos o planejamento das trilhas elétricas (roteamento) lado a lado com a renderização 3D da PCB desenvolvida, mostrando a disposição física final dos conectores e módulos:
 
-![Imagem da PCB 3D](images/pcb_3d.png)
+<p align="center">
+  <img src="images/trilhas.png" alt="Trilhas da PCB no Easy EDA" width="48%">
+  <img src="images/pcb_3d.png" alt="Imagem da PCB 3D" width="48%">
+</p>
 
 ---
 
 ## ⚙️ Instalação
 
 ### Software
-A lógica está escrita em C/C++ usando a **Arduino IDE**.
+O software foi desenvolvido em C++. Seu fluxo de funcionamento, desde a leitura dos sensores até a transmissão dos dados, é apresentado no diagrama de blocos a seguir.
 
-Para uma melhor compreensão da lógica embarcada no ESP32, o diagrama de blocos a seguir ilustra o fluxo de funcionamento do software, desde a leitura dos sensores até a transmissão dos dados:
+```mermaid
+flowchart LR
 
-![Diagrama de blocos do funcionamento do software](caminho/para/diagrama_blocos.png)
+    subgraph Entradas
+        A1["12× Sinal -"] --> MUXN["CD74HC4067"]
+        A2["Seleção de Canal<br>(ESP32)"] --> MUXN
+
+        B1["12× Sinal +"] --> MUXP["CD74HC4067"]
+        B2["Seleção de Canal<br>(ESP32)"] --> MUXP
+    end
+
+    MUXN --> ADS["ADS1115"]
+    MUXP --> ADS
+
+    ADS -- "I²C" --> ESP["ESP32"]
+
+    ESP -- "Wi-Fi" --> GS["Google Sheets"]
+
+    ESP -- "Ponto de Acesso" --> WEB["Interface Web"]
+```
 
 **Bibliotecas e Ferramentas Necessárias:**
 *   Placa ESP32 Instalada na Arduino IDE.
@@ -78,15 +100,17 @@ Para uma melhor compreensão da lógica embarcada no ESP32, o diagrama de blocos
 *   Biblioteca `ESP_Google_Sheet_Client` (Acesso e autenticação segura com Google Cloud).
 *   Biblioteca `mongoose_glue.h` (Servidor Web Embarcado - Mongoose Wizard).
 
-**Passo a passo:**
-1.  Clone este repositório para o seu computador.
-2.  Na Arduino IDE, abra o arquivo principal `wizard.ino`.
-3.  Certifique-se de preencher as variáveis do Google Sheets (`PROJECT_ID`, `CLIENT_EMAIL` e a respectiva `PRIVATE_KEY`) com as credenciais da sua Google Service Account.
-4.  Compile e faça o upload do código para o ESP32.
+## Instalação
 
-### Hardware
-*   Conecte as trilhas I2C e portas GPIO rigorosamente como indicado no esquemático. 
-*   Uma vez ligado (via chave de energia da bateria), o sistema levantará um Access Point próprio chamado **BioMon**.
+1. Clone este repositório para o seu computador.
+2. Abra o arquivo `wizard.ino` na Arduino IDE.
+3. Preencha as variáveis do Google Sheets (`PROJECT_ID`, `CLIENT_EMAIL` e `PRIVATE_KEY`) com as credenciais da sua Google Service Account.
+4. Compile e faça o upload do código para o ESP32.
+
+<p align="center">
+  <img src="images/instructions.png" alt="Instruções para utilização do sistema" width="80%">
+</p>
+
 
 ---
 
@@ -94,9 +118,11 @@ Para uma melhor compreensão da lógica embarcada no ESP32, o diagrama de blocos
 
 Após a integração de todo o hardware e software, o equipamento foi montado em sua estrutura definitiva. A imagem abaixo apresenta o sistema físico final desenvolvido e pronto para uso:
 
-![Sistema final físico desenvolvido](images/system_3.jpeg)
-![Sistema final físico desenvolvido](images/system_2.jpeg)
-![Sistema final físico desenvolvido](images/system_1.jpeg)
+<p align="center">
+  <img src="images/system_3.jpeg" alt="Sistema final físico desenvolvido 3" width="32%">
+  <img src="images/system_2.jpeg" alt="Sistema final físico desenvolvido 2" width="32%">
+  <img src="images/system_1.jpeg" alt="Sistema final físico desenvolvido 1" width="32%">
+</p>
 
 O firmware resultante (`wizard.ino`) cumpre com todos os requisitos funcionais estipulados:
 *   **Modo Access Point & Station:** O ESP32 cria sua própria rede Wi-Fi e simultaneamente tenta conectar à rede local de internet do laboratório para despachar pacotes.
@@ -108,16 +134,22 @@ O firmware resultante (`wizard.ino`) cumpre com todos os requisitos funcionais e
 
 Para o monitoramento local, o servidor web embarcado fornece uma interface amigável. A captura de tela a seguir exibe a Interface Web, que atua como um multímetro digital em tempo real e painel de configuração:
 
-![Interface web](images/ui_1.png)
-![Interface web](images/ui_2.png)
+<p align="center">
+  <img src="images/ui_1.png" alt="Interface web 1" width="78%">
+  <img src="images/ui_2.png" alt="Interface web 2" width="78%">
+</p>
 
 Os dados coletados são enviados automaticamente para a nuvem. A imagem abaixo mostra a Planilha no Google Sheets recebendo as leituras contínuas do sistema:
 
-![Planilha no Google Sheets](images/table.png)
+<p align="center">
+  <img src="images/table.png" alt="Planilha no Google Sheets" width="80%">
+</p>
 
 Com os dados estruturados na planilha, é possível gerar visualizações dinâmicas. A seguir, os gráficos no Google Sheets ilustrando o comportamento da tensão (bioeletricidade) gerada pelas células ao longo do tempo:
 
-![Gráficos no Google Sheets](images/graph.png)
+<p align="center">
+  <img src="images/graph.png" alt="Gráficos no Google Sheets" width="80%">
+</p>
 
 ---
 
