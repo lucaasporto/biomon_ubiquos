@@ -107,8 +107,12 @@ flowchart LR
 3. Preencha as variáveis do Google Sheets (`PROJECT_ID`, `CLIENT_EMAIL` e `PRIVATE_KEY`) com as credenciais da sua Google Service Account.
 4. Compile e faça o upload do código para o ESP32.
 
+## Instruções de Uso
+
+A imagem a seguir contém o passo a passo e as instruções detalhadas para a correta utilização e configuração inicial do sistema:
+
 <p align="center">
-  <img src="images/instructions.png" alt="Instruções para utilização do sistema" width="80%">
+  <img src="images/instructions.png" alt="Instruções para utilização do sistema" width="60%">
 </p>
 
 
@@ -150,15 +154,3 @@ Com os dados estruturados na planilha, é possível gerar visualizações dinâm
 <p align="center">
   <img src="images/graph.png" alt="Gráficos no Google Sheets" width="80%">
 </p>
-
----
-
-## 📝 Tutorial e Troubleshoot
-
-O trabalho com grandezas bioeletroquímicas minúsculas exige atenção aos fatores de risco documentados. Abaixo listamos as soluções implementadas para problemas comuns de hardware/software:
-
-*   **Problema de Estabilidade de Troca de Canais:** Trocar a chave do multiplexador gera flutuações rápidas capacitivas. 
-    *   *Solução no Código:* Foi adicionado um `delay(2)` estratégico imediatamente após o `selectMux(ch)` para garantir que a rede elétrica dos fios até o ADS1115 estabilize antes da leitura ser registrada.
-    *   *Solução no Código:* Filtro lógico via software para definir que a menor tensão válida do béquer seja 0.0mV, ignorando loops de indução parasita negativos.
-*   **Perda de Conexão com o Google Sheets:** Em caso de queda do roteador do laboratório, o fluxo de loop era interrompido devido a travamentos de requisição de POST.
-    *   *Solução no Código:* Uma rotina detecta perda de sinal (`WL_CONNECTED`), desliga o modo Station temporariamente para não congelar o microcontrolador, preservando o modo Ponto de Acesso e mantendo o servidor web funcionando localmente.
