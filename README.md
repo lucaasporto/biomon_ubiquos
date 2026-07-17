@@ -1,4 +1,4 @@
-# Sistema de Aquisição de Dados para Medição de Células de Bateria de Baixa Tensão
+# BioMon - Sistema de Aquisição de Dados para Medição de Células de Bateria de Baixa Tensão
 
 > **Autor:** Lucas Porto Ribeiro
 > **Resumo:** Sistema dedicado ao monitoramento contínuo, escalável e de baixo custo para aquisição de bioeletricidade na ordem de milivolts, focado em células a combustível microbianas (MFCs).
