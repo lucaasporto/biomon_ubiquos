@@ -1,169 +1,129 @@
-# BioMon — Sistema de Aquisição de Baixas Tensões para Monitoramento de Células Bioeletroquímicas
+# Sistema de Aquisição de Dados para Medição de Células de Bateria de Baixa Tensão
 
-Sistema embarcado de baixo custo, baseado em ESP32, para leitura simultânea (via multiplexação) de até 12 canais de baixa tensão (escala de milivolts), voltado à medição de potencial elétrico de células bioquímicas/bioeletroquímicas (ex.: células de combustível microbianas — MFCs). O sistema realiza leitura periódica dos canais, disponibiliza um dashboard web local em tempo real e registra os dados automaticamente em uma planilha do Google Sheets.
-
-> **Autores do projeto:**
-> - Nome do(s) autor(es) — papel no projeto (ex.: firmware, hardware, testes)
-> - *(preencha aqui os nomes e papéis de cada integrante)*
+> **Autor:** Lucas Porto Ribeiro
+> **Resumo:** Sistema dedicado ao monitoramento contínuo, escalável e de baixo custo para aquisição de bioeletricidade na ordem de milivolts, focado em células a combustível microbianas (MFCs).
 
 ---
 
-## Sumário
+## 📖 Introdução
 
-- [Introdução](#introdução)
-- [Hardware Necessário](#hardware-necessário-material-utilizado)
-- [Esquema de Conexão](#esquema-de-conexão)
-- [Instalação](#instalação)
-  - [Hardware](#hardware-1)
-  - [Software](#software)
-- [Projeto Final](#projeto-final)
-- [Tutorial](#tutorial)
-- [Referências](#referências)
+As células a combustível microbianas (MFCs) são tecnologias bioeletroquímicas que utilizam microrganismos como biocatalisadores para converter a energia química de substratos orgânicos diretamente em energia elétrica. Aplicações em geração de energia renovável, tratamento de efluentes e biossensores são vastas.
+
+A atividade metabólica desses microrganismos faz com que a tensão gerada oscile ao longo do tempo, o que torna o **monitoramento contínuo** indispensável. O principal desafio é registrar múltiplas tensões de forma simultânea e precisa na escala de milivolts, uma vez que data loggers comerciais de alta precisão são onerosos e multímetros manuais não oferecem escalabilidade.
+
+Este projeto propõe uma arquitetura baseada no microcontrolador ESP32 para medir **12 canais simultâneos**, superando limitações de custo e hardware, automatizando o envio de dados para a nuvem.
 
 ---
 
-## Introdução
+## 🛠️ Hardware Necessário (Material Utilizado)
 
-Células bioeletroquímicas — como as células de combustível microbianas (*microbial fuel cells*, MFCs) — geram tensões elétricas relativamente baixas (tipicamente entre poucos milivolts e cerca de 800 mV), que precisam ser monitoradas ao longo do tempo, em intervalos regulares, para caracterizar seu desempenho eletroquímico (tensão em circuito aberto, curva de polarização, densidade de potência, resistência interna, entre outros parâmetros).
+Para montar a solução, os componentes foram divididos em duas categorias. A subseção **Hardware Principal** lista os itens essenciais para o processamento de dados e funcionamento lógico do sistema; com estes componentes já é possível rodar a solução desenvolvida. Já a subseção **Hardware de Integração** abrange os itens complementares necessários para alimentação, montagem e transformação do circuito em um equipamento físico funcional.
 
-Esse tipo de monitoramento contínuo é tradicionalmente feito com data loggers comerciais ou multímetros de bancada. Ambas as soluções apresentam limitações relevantes para laboratórios com orçamento reduzido: data loggers de precisão têm custo elevado, e multímetros digitais de baixo custo normalmente possuem um único canal e exigem coleta manual dos dados, o que inviabiliza o monitoramento simultâneo de múltiplos reatores por longos períodos.
+### Hardware Principal
 
-Como alternativa, diferentes trabalhos publicados na literatura já validaram o uso de microcontroladores de baixo custo (como Arduino UNO e ESP32) associados a conversores analógico-digitais externos de maior resolução (ex.: ADS1115) como sistemas de aquisição de dados para monitoramento eletroquímico de MFCs. Esses estudos compararam estatisticamente as leituras dos microcontroladores com as de multímetros de referência e não encontraram diferença significativa entre eles, obtendo erros médios absolutos e relativos da ordem de ~1 mV e ~1-3%, o que indica que essa abordagem é uma alternativa viável e precisa para substituir instrumentação cara em estudos bioeletroquímicos.
+*   **Microcontrolador ESP32:** O cérebro do projeto. Fornece processamento, interface Wi-Fi e hospeda a página web local (Servidor Web) para acompanhamento em tempo real.
+*   **Conversor Analógico-Digital (ADC) ADS1115:** Garante uma resolução de 16 bits. É essencial porque o ADC interno do ESP32 possui comportamento não linear e resolução menor. Sua precisão varia conforme o ganho configurado, indo de 0,0078125 mV por bit (ganho de 16×) até 0,1875 mV por bit (ganho de 2/3×), permitindo adequar a resolução à faixa de tensão medida.
+*   **2x Multiplexadores CD74HC4067:** Multiplexadores analógicos de 16 canais que atuam como "chaves seletoras". Como o ADS1115 tem canais limitados, os multiplexadores expandem o sistema para os 12 pares (positivo e negativo) necessários.
 
-Este projeto segue a mesma motivação: oferecer um sistema de aquisição de dados **preciso, expansível e de baixo custo** para leitura de baixas tensões geradas por células bioquímicas. A diferença deste sistema em relação aos trabalhos citados está na arquitetura de expansão de canais: em vez de utilizar múltiplas entradas analógicas fixas, o projeto combina um único ADS1115 com dois multiplexadores analógicos CD74HC4067, permitindo escalar a leitura para até 16 canais (12 em uso na versão atual) endereçados sequencialmente por um único conversor A/D, além de oferecer configuração e visualização via interface web embarcada, sem a necessidade de conexão física a um computador durante a operação.
+### Hardware de Integração
 
----
-
-## Hardware Necessário (Material Utilizado)
-
-| Componente | Descrição e especificações |
-|---|---|
-| **ESP32 DEVKIT V1** | Microcontrolador principal do sistema. Responsável pela leitura dos sensores, hospedagem do dashboard web (Access Point + modo estação Wi-Fi), sincronização de horário via NTP e envio dos dados ao Google Sheets. |
-| **ADS1115** | Conversor analógico-digital (ADC) externo de 16 bits, comunicação via I2C. Utilizado para leitura de tensão com maior resolução que o ADC interno de 12 bits do ESP32. No firmware atual, o ganho é configurado como 4x (faixa de ±1,024 V, resolução de ~0,03125 mV por bit), otimizado para a leitura de sinais na faixa de milivolts típica de células bioeletroquímicas. |
-| **2× CD74HC4067** | Multiplexadores/demultiplexadores analógicos de 16 canais. Endereçados por um barramento comum de 4 bits de seleção, permitem comutar sequencialmente entre os canais monitorados, roteando o sinal de cada célula até a entrada do ADS1115. Na versão atual do firmware, 12 dos 16 canais disponíveis são utilizados (expansível até 16). |
-| Cabos jumper / protoboard ou PCB | Utilizados para as conexões elétricas entre ESP32, ADS1115, multiplexadores e as células sob teste. |
-| Fonte de alimentação | Alimentação de 5V/3,3V para o ESP32 e os módulos eletrônicos *(especifique aqui a fonte utilizada em seu protótipo)*. |
-| Células bioeletroquímicas sob teste | Reatores/células cujo potencial elétrico será monitorado (até 12 unidades na configuração atual). |
-
-> 📷 **Insira aqui uma foto de todos os componentes de hardware separados, antes da montagem.**
->
-> ![Componentes de hardware do projeto](docs/imagens/componentes_hardware.png)
+*   **Bateria de Lítio 18650 Recarregável:** Fornece a tensão autônoma necessária para a alimentação do sistema.
+*   **Suporte (Case) para Bateria 18650:** Utilizado para acoplar a bateria ao circuito.
+*   **Módulo TP4056:** Módulo responsável pelo carregamento da bateria de lítio.
+*   **Módulo Step-Up MT3608:** Regulador de tensão utilizado para elevar a tensão de saída da bateria para 5V, mantendo-a constante e estável.
+*   **Botão (Chave Liga/Desliga):** Permite ligar e desligar o equipamento.
+*   **LED:** Utilizado para sinalizar visualmente o status (ligado/desligado) do sistema.
+*   **Resistor de 220Ω:** Para limitar a corrente elétrica direcionada ao LED.
+*   **8x Conectores KRE (3 terminais):** Servem como portas de conexão seguras dos cabos provenientes dos 24 béqueres biológicos.
+*   **Conectores JST-XH (Macho e Fêmea):** Facilitam a conexão da alimentação na placa principal.
+*   **Barras de Pinos Fêmea (Cabeçotes):** Utilizadas para acoplar os componentes à placa. Quantidades utilizadas: 2 fileiras de 16 pinos, 2 fileiras de 15 pinos, 1 fileira de 10 pinos e 2 fileiras de 8 pinos.
+*   **Placa de Cobre:** Base para acomodação dos componentes e roteamento das trilhas elétricas.
 
 ---
 
-## Esquema de Conexão
+## 🔌 Esquema de Conexão
 
-O barramento de seleção de canal (4 bits, comum aos dois multiplexadores CD74HC4067) é conectado aos seguintes pinos do ESP32:
+A aquisição é baseada na leitura diferencial em pares. A conexão lógica se dá da seguinte forma:
 
-| Sinal | Pino do ESP32 | Função |
-|---|---|---|
-| S0 | GPIO 32 | Bit menos significativo (LSB) do endereço do canal |
-| S1 | GPIO 33 | Bit 1 do endereço do canal |
-| S2 | GPIO 25 | Bit 2 do endereço do canal |
-| S3 | GPIO 26 | Bit mais significativo (MSB) do endereço do canal |
-| SDA (I2C) | GPIO 21 (padrão ESP32) | Comunicação com o ADS1115 |
-| SCL (I2C) | GPIO 22 (padrão ESP32) | Comunicação com o ADS1115 |
+1.  As saídas de sinal dos béqueres entram diretamente nos pinos de entrada dos dois **CD74HC4067** (um gerencia a polaridade positiva, o outro a negativa).
+2.  O **ESP32** comanda a seleção de canal (através dos pinos `S0`, `S1`, `S2` e `S3`, mapeados para os GPIOs 32, 33, 25 e 26), de modo síncrono nos dois multiplexadores.
+3.  As saídas comuns dos multiplexadores são conectadas ao GND e ao pino `A0` do **ADS1115**.
+4.  O **ADS1115** realiza a conversão com alta resolução e trafega os dados digitais de volta ao **ESP32** utilizando o protocolo **I2C** (SDA e SCL).
 
-Como os dois multiplexadores compartilham o mesmo barramento de seleção (S0–S3), ambos comutam de forma sincronizada para o mesmo índice de canal a cada leitura. Essa arquitetura permite, por exemplo, rotear os dois terminais (positivo e referência) de cada célula até as entradas do ADS1115 a cada ciclo de leitura, evitando que todas as células monitoradas compartilhem um único referencial de terra. **Recomenda-se validar e detalhar essa ligação de acordo com o esquema elétrico específico do seu protótipo**, incluindo qual terminal de cada célula é conectado a cada multiplexador e qual entrada do ADS1115 é utilizada.
+### Modelagem do Circuito
 
-> 📷 **Insira aqui o diagrama elétrico completo (esquemático) do sistema, mostrando ESP32, ADS1115 e os dois CD74HC4067.**
->
-> ![Esquema elétrico do sistema](docs/imagens/esquema_eletrico.png)
+Abaixo, é possível visualizar o diagrama esquemático do circuito, projetado e montado utilizando a ferramenta EasyEDA, detalhando as ligações elétricas entre os componentes:
 
-> 📷 **Insira aqui uma foto do protótipo já montado em protoboard ou PCB, com as ligações visíveis.**
->
-> ![Protótipo montado](docs/imagens/prototipo_montado.png)
+![Circuito montado no Easy EDA](caminho/para/circuito_easyeda.png)
+
+Com base no esquemático, o design da placa de circuito impresso (PCB) foi elaborado. A seguir, a renderização 3D da PCB desenvolvida, mostrando a disposição física final dos conectores e módulos:
+
+![Imagem da PCB 3D](caminho/para/pcb_3d.png)
 
 ---
 
-## Instalação
-
-### Hardware
-
-1. Monte o ADS1115 e os dois módulos CD74HC4067 na protoboard/PCB, seguindo o [esquema de conexão](#esquema-de-conexão) acima.
-2. Conecte os pinos de seleção (S0–S3) de ambos os multiplexadores em paralelo aos GPIOs 32, 33, 25 e 26 do ESP32.
-3. Conecte o ADS1115 ao barramento I2C do ESP32 (SDA/SCL).
-4. Conecte os terminais de cada célula bioeletroquímica aos canais correspondentes dos multiplexadores.
-5. Alimente o circuito conforme a tensão de operação dos módulos utilizados.
-
-> 📷 **Insira aqui fotos do passo a passo da montagem do hardware (fiação, soldagem, fixação dos módulos, etc.).**
->
-> ![Passo a passo da montagem](docs/imagens/montagem_passo_a_passo.png)
+## ⚙️ Instalação
 
 ### Software
+A lógica está escrita em C/C++ usando a **Arduino IDE**.
 
-1. **Instale a Arduino IDE** (versão mais recente recomendada).
-2. **Adicione o suporte à placa ESP32** em `Arquivo > Preferências > URLs Adicionais para Gerenciadores de Placas`, utilizando a URL do pacote de placas Espressif, e instale o pacote `esp32` pelo Gerenciador de Placas.
-3. **Instale as bibliotecas necessárias** pelo Gerenciador de Bibliotecas da Arduino IDE:
-   - `Adafruit_ADS1X15` (leitura do ADS1115);
-   - `ESP_Google_Sheet_Client` (envio de dados ao Google Sheets);
-   - `Preferences` (armazenamento persistente de configurações na memória flash do ESP32 — já incluída no core do ESP32);
-   - Biblioteca **Mongoose** (responsável pela interface web embarcada). O arquivo `mongoose_glue.c`/`.h` presente no projeto é **gerado automaticamente pelo [Mongoose Wizard](https://mongoose.ws/wizard/)** e não deve ser editado manualmente — qualquer alteração de layout ou de variáveis do dashboard deve ser feita reexportando o projeto pelo Wizard.
-4. **Configure o acesso ao Google Sheets:**
-   - Crie um projeto no Google Cloud e uma conta de serviço com acesso à API do Google Sheets.
-   - Compartilhe a planilha de destino com o e-mail da conta de serviço.
-   - No arquivo principal do firmware, preencha as constantes `PROJECT_ID`, `CLIENT_EMAIL`, `PRIVATE_KEY` e `spreadsheetId` com as credenciais do seu próprio projeto Google Cloud (**nunca reutilize ou publique as credenciais originais do desenvolvimento**).
-5. **Compile e grave o firmware** no ESP32 pela Arduino IDE.
-6. **Primeiro acesso:** ao ligar, o ESP32 cria automaticamente uma rede Wi-Fi própria (Access Point). Conecte-se a essa rede pelo celular ou computador e acesse a interface web para configurar a rede Wi-Fi definitiva e o intervalo de envio dos dados.
+Para uma melhor compreensão da lógica embarcada no ESP32, o diagrama de blocos a seguir ilustra o fluxo de funcionamento do software, desde a leitura dos sensores até a transmissão dos dados:
 
-> 📷 **Insira aqui uma captura de tela do Gerenciador de Placas com o ESP32 instalado.**
->
-> ![Instalação da placa ESP32 na Arduino IDE](docs/imagens/instalacao_esp32_ide.png)
+![Diagrama de blocos do funcionamento do software](caminho/para/diagrama_blocos.png)
 
----
+**Bibliotecas e Ferramentas Necessárias:**
+*   Placa ESP32 Instalada na Arduino IDE.
+*   Biblioteca `WiFi.h` (Nativa) e `Preferences.h` (Nativa).
+*   Biblioteca `Adafruit_ADS1X15` (Comunicação com ADC).
+*   Biblioteca `ESP_Google_Sheet_Client` (Acesso e autenticação segura com Google Cloud).
+*   Biblioteca `mongoose_glue.h` (Servidor Web Embarcado - Mongoose Wizard).
 
-## Projeto Final
+**Passo a passo:**
+1.  Clone este repositório para o seu computador.
+2.  Na Arduino IDE, abra o arquivo principal `wizard.ino`.
+3.  Certifique-se de preencher as variáveis do Google Sheets (`PROJECT_ID`, `CLIENT_EMAIL` e a respectiva `PRIVATE_KEY`) com as credenciais da sua Google Service Account.
+4.  Compile e faça o upload do código para o ESP32.
 
-O firmware final integra os seguintes módulos e funcionalidades:
-
-- **Leitura multiplexada:** varredura de até 12 canais analógicos (expansível a 16) via ADS1115 + 2× CD74HC4067, com atualização local de até 4 leituras por segundo.
-- **Dashboard web embarcado:** interface (gerada via Mongoose Wizard) para visualização em tempo real das tensões de cada canal, resumo estatístico (maior valor, menor valor, média e número de canais ativos) e habilitação/desabilitação individual de cada uma das 12 células monitoradas.
-- **Configuração de rede via web:** o ESP32 opera simultaneamente como ponto de acesso próprio (rede local "BioMon") e como estação conectada à rede Wi-Fi do laboratório; as credenciais podem ser alteradas diretamente pela interface web, sem necessidade de regravar o firmware.
-- **Sincronização de horário (NTP):** utilizada para registrar o timestamp correto de cada leitura enviada.
-- **Registro automático em nuvem:** envio periódico dos dados para uma planilha do Google Sheets, com intervalo de envio configurável (entre 0,2 s e 1800 s) e dois modos de operação — envio direto (intervalos ≥ 1 s) e envio em lote (*batching*, para intervalos menores que 1 s).
-- **Persistência de configurações:** rede Wi-Fi e intervalo de log são armazenados na memória flash do ESP32, preservando as configurações após reinicializações ou quedas de energia.
-- **Modo econômico:** possibilidade de desligar a leitura/atualização local do dashboard mantendo apenas o envio dos dados para a planilha, reduzindo o consumo de processamento.
-
-> 📷 **Insira aqui capturas de tela do dashboard web em funcionamento (visualização das tensões, tela de configuração de Wi-Fi e tela de intervalo de log).**
->
-> ![Dashboard web do sistema](docs/imagens/dashboard_web.png)
-
-O código-fonte principal está organizado da seguinte forma:
-
-- `wizard.ino` — firmware principal (leitura dos sensores, lógica de multiplexação, Wi-Fi, NTP, Google Sheets e registro dos handlers da interface web).
-- `mongoose_glue.c` / `mongoose_glue.h` — código gerado automaticamente pelo Mongoose Wizard, faz a ponte entre a interface web e as variáveis do firmware (**não editar manualmente**).
+### Hardware
+*   Conecte as trilhas I2C e portas GPIO rigorosamente como indicado no esquemático. 
+*   Uma vez ligado (via chave de energia da bateria), o sistema levantará um Access Point próprio chamado **BioMon**.
 
 ---
 
-## Tutorial
+## 🚀 Projeto Final
 
-Esta seção reúne os tutoriais utilizados para testar cada módulo do sistema de forma isolada, antes da integração final. Recomenda-se organizar o código de cada teste em uma subpasta própria do repositório, por exemplo:
+Após a integração de todo o hardware e software, o equipamento foi montado em sua estrutura definitiva. A imagem abaixo apresenta o sistema físico final desenvolvido e pronto para uso:
 
-```
-/docs/tutoriais/
-  ├── 01_teste_ads1115/       -> leitura básica de um canal do ADS1115
-  ├── 02_teste_cd74hc4067/    -> varredura dos canais do multiplexador
-  ├── 03_teste_wifi_ap_sta/   -> teste do modo Wi-Fi (Access Point + estação)
-  └── 04_teste_google_sheets/ -> teste de envio de dados para o Google Sheets
-```
+![Sistema final físico desenvolvido](caminho/para/sistema_fisico.jpg)
 
-Em cada subpasta, inclua o código de teste utilizado e um pequeno `README.md` descrevendo:
+O firmware resultante (`wizard.ino`) cumpre com todos os requisitos funcionais estipulados:
+*   **Modo Access Point & Station:** O ESP32 cria sua própria rede Wi-Fi e simultaneamente tenta conectar à rede local de internet do laboratório para despachar pacotes.
+*   **Servidor Web Embarcado:** Permite acesso em tempo real via smartphone ou computador para visualizar um multímetro digital virtual, onde é possível configurar os parâmetros de conectividade e o intervalo da amostra.
+*   **Nuvem:** Processa lotes ("batching") de amostras e despacha para uma planilha do **Google Sheets** periodicamente (evitando limitação de cota de chamadas de API).
+*   **Memória:** Utiliza a biblioteca `Preferences` para armazenar persistentemente a rede e senhas setadas na interface.
 
-- o objetivo do teste;
-- os problemas encontrados durante a instalação das ferramentas de software/hardware ou durante os testes;
-- como cada problema foi solucionado.
+### Interfaces e Visualização de Dados
 
-> 📷 **Insira aqui, se útil, imagens ou capturas de tela dos resultados dos testes individuais de cada sensor/módulo (ex.: leitura no Serial Monitor).**
->
-> ![Resultado dos testes individuais](docs/imagens/testes_individuais.png)
+Para o monitoramento local, o servidor web embarcado fornece uma interface amigável. A captura de tela a seguir exibe a Interface Web, que atua como um multímetro digital em tempo real e painel de configuração:
 
----
+![Interface web](caminho/para/interface_web.png)
 
-## Referências
+Os dados coletados são enviados automaticamente para a nuvem. A imagem abaixo mostra a Planilha no Google Sheets recebendo as leituras contínuas do sistema:
 
-- INDRIYANI, Y. A.; RUSTAMI, E.; RUSMANA, I.; ANWAR, S.; DJAJAKIRANA, G.; SANTOSA, D. A. **Bioelectricity production of microbial fuel cells (MFCs) and the simultaneous monitoring using developed multi-channels Arduino UNO-based data logging system.** Journal of Applied Electrochemistry, v. 54, p. 503–518, 2024.
-- INDRIYANI, Y. A.; EFENDI, R.; RUSTAMI, E.; RUSMANA, I.; ANWAR, S.; DJAJAKIRANA, G.; SANTOSA, D. A. **Affordable ESP32-based monitoring system for microbial fuel cells: real-time analysis and performance evaluation.** International Journal of Energy and Water Resources, 2023.
+![Planilha no Google Sheets](caminho/para/planilha_sheets.png)
+
+Com os dados estruturados na planilha, é possível gerar visualizações dinâmicas. A seguir, os gráficos no Google Sheets ilustrando o comportamento da tensão (bioeletricidade) gerada pelas células ao longo do tempo:
+
+![Gráficos no Google Sheets](caminho/para/graficos_sheets.png)
 
 ---
 
-*Documentação criada com base no modelo de estrutura básica para README de projetos no GitHub. Complete os campos indicados (autores, imagens, credenciais, esquema elétrico) antes da publicação final.*
+## 📝 Tutorial e Troubleshoot
+
+O trabalho com grandezas bioeletroquímicas minúsculas exige atenção aos fatores de risco documentados. Abaixo listamos as soluções implementadas para problemas comuns de hardware/software:
+
+*   **Problema de Estabilidade de Troca de Canais:** Trocar a chave do multiplexador gera flutuações rápidas capacitivas. 
+    *   *Solução no Código:* Foi adicionado um `delay(2)` estratégico imediatamente após o `selectMux(ch)` para garantir que a rede elétrica dos fios até o ADS1115 estabilize antes da leitura ser registrada.
+    *   *Solução no Código:* Filtro lógico via software para definir que a menor tensão válida do béquer seja 0.0mV, ignorando loops de indução parasita negativos.
+*   **Perda de Conexão com o Google Sheets:** Em caso de queda do roteador do laboratório, o fluxo de loop era interrompido devido a travamentos de requisição de POST.
+    *   *Solução no Código:* Uma rotina detecta perda de sinal (`WL_CONNECTED`), desliga o modo Station temporariamente para não congelar o microcontrolador, preservando o modo Ponto de Acesso e mantendo o servidor web funcionando localmente.
