@@ -54,11 +54,11 @@ A aquisição é baseada na leitura diferencial em pares. A conexão lógica se 
 
 Abaixo, é possível visualizar o diagrama esquemático do circuito, projetado e montado utilizando a ferramenta EasyEDA, detalhando as ligações elétricas entre os componentes:
 
-![Circuito montado no Easy EDA](caminho/para/circuito_easyeda.png)
+![Circuito montado no Easy EDA](images/circuit.svg)
 
 Com base no esquemático, o design da placa de circuito impresso (PCB) foi elaborado. A seguir, a renderização 3D da PCB desenvolvida, mostrando a disposição física final dos conectores e módulos:
 
-![Imagem da PCB 3D](caminho/para/pcb_3d.png)
+![Imagem da PCB 3D](images/pcb_3d.png)
 
 ---
 
@@ -94,7 +94,9 @@ Para uma melhor compreensão da lógica embarcada no ESP32, o diagrama de blocos
 
 Após a integração de todo o hardware e software, o equipamento foi montado em sua estrutura definitiva. A imagem abaixo apresenta o sistema físico final desenvolvido e pronto para uso:
 
-![Sistema final físico desenvolvido](caminho/para/sistema_fisico.jpg)
+![Sistema final físico desenvolvido](images/system_3.jpeg)
+![Sistema final físico desenvolvido](images/system_2.jpeg)
+![Sistema final físico desenvolvido](images/system_1.jpeg)
 
 O firmware resultante (`wizard.ino`) cumpre com todos os requisitos funcionais estipulados:
 *   **Modo Access Point & Station:** O ESP32 cria sua própria rede Wi-Fi e simultaneamente tenta conectar à rede local de internet do laboratório para despachar pacotes.
@@ -106,15 +108,16 @@ O firmware resultante (`wizard.ino`) cumpre com todos os requisitos funcionais e
 
 Para o monitoramento local, o servidor web embarcado fornece uma interface amigável. A captura de tela a seguir exibe a Interface Web, que atua como um multímetro digital em tempo real e painel de configuração:
 
-![Interface web](caminho/para/interface_web.png)
+![Interface web](images/ui_1.png)
+![Interface web](images/ui_2.png)
 
 Os dados coletados são enviados automaticamente para a nuvem. A imagem abaixo mostra a Planilha no Google Sheets recebendo as leituras contínuas do sistema:
 
-![Planilha no Google Sheets](caminho/para/planilha_sheets.png)
+![Planilha no Google Sheets](images/table.png)
 
 Com os dados estruturados na planilha, é possível gerar visualizações dinâmicas. A seguir, os gráficos no Google Sheets ilustrando o comportamento da tensão (bioeletricidade) gerada pelas células ao longo do tempo:
 
-![Gráficos no Google Sheets](caminho/para/graficos_sheets.png)
+![Gráficos no Google Sheets](images/graph.png)
 
 ---
 
